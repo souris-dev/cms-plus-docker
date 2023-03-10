@@ -117,6 +117,7 @@ services:
       - AUTH_SERVICE_HOST=auth-service
       - AUTH_SERVICE_PORT=8002
       - AUTH_SERVICE_PROTOCOL=http
+      - USE_AUTH=true
 
   cms-frontend:
     build:
