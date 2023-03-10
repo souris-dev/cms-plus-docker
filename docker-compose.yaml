@@ -134,4 +134,4 @@ services:
         condition: service_started
     environment:
       - REACT_APP_AUTH_URL=http://localhost:8002
-      - REACT_APP_BACKEND_URL=http://localhost:8003
+      - REACT_APP_BACKEND_URL=http://localhost:8003/api
