@@ -1,0 +1,119 @@
+version: "3"
+
+services:
+  cache:
+    image: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  db-auth:
+    image: postgres
+    container_name: db-auth
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=users_auth_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - ../.db-auth:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-cms:
+    image: postgres
+    container_name: db-cms
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=cms_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - ../.db-cms:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrations-cms:
+    build: 
+      context: ../cms-plus-be
+      dockerfile: ../cms-plus-be/Dockerfile.migrations
+      args:
+        - no_cache=1
+    restart: on-failure
+    depends_on:
+      db-cms:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=development
+      - DB_PASSWORD=password
+      - DB_HOST=db-cms
+      - DB_PORT=5432
+
+  migrations-auth:
+    build: 
+      context: ../auth-service
+      dockerfile: ../auth-service/Dockerfile.migrations
+      args:
+        - no_cache=1
+    restart: on-failure
+    depends_on:
+      db-auth:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=development
+      - DB_PASSWORD=password
+      - DB_HOST=db-auth
+      - DB_PORT=5432
+    
+  auth-service:
+    build:
+      context: ../auth-service
+      args:
+        - no_cache=1
+    container_name: auth-service
+    restart: always
+    ports:
+      - "8002:8002"
+    depends_on:
+      db-auth:
+        condition: service_healthy
+      migrations-auth:
+        condition: service_started
+      cache:
+        condition: service_started
+    environment:
+      - DB_PASSWORD=password
+      - DB_HOST=db-auth
+      - DB_PORT=5432
+    
+  cms-service:
+    build:
+      context: ../cms-plus-be
+      args:
+        - no_cache=1
+    container_name: cms-service
+    restart: always
+    ports:
+      - "8003:8003"
+    depends_on:
+      db-cms:
+        condition: service_healthy
+      migrations-cms:
+        condition: service_started
+      auth-service:
+        condition: service_started
+    environment:
+      - DB_PASSWORD=password
+      - DB_HOST=db-cms
+      - DB_PORT=5432
+      - AUTH_SERVICE_HOST=auth-service
+      - AUTH_SERVICE_PORT=8002
+      - AUTH_SERVICE_PROTOCOL=http
