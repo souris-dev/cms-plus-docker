@@ -117,3 +117,21 @@ services:
       - AUTH_SERVICE_HOST=auth-service
       - AUTH_SERVICE_PORT=8002
       - AUTH_SERVICE_PROTOCOL=http
+
+  cms-frontend:
+    build:
+      context: ../cms-plus-fe
+      args:
+        - no_cache=1
+    container_name: cms-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      auth-service:
+        condition: service_started
+      cms-service:
+        condition: service_started
+    environment:
+      - REACT_APP_AUTH_URL=http://auth-service:8002
+      - REACT_APP_BACKEND_URL=http://cms-service:800
